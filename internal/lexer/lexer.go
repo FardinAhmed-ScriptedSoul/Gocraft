@@ -1,4 +1,3 @@
-
 package lexer
 
 import "github.com/FardinAhmed-ScriptedSoul/Gocraft/internal/token"
@@ -53,6 +52,16 @@ func (l *Lexer) readIdentifier() string {
 	return l.input[position:l.position]
 }
 
+func (l *Lexer) readNumber() string {
+	position := l.position
+
+	for isDigit(l.ch) {
+		l.readChar()
+	}
+
+	return l.input[position:l.position]
+}
+
 func isLetter(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') ||
 		(ch >= 'A' && ch <= 'Z') ||
@@ -71,6 +80,15 @@ func (l *Lexer) NextToken() token.Token {
 
 		return token.Token{
 			Type:    token.LookupIdent(literal),
+			Literal: literal,
+		}
+	}
+
+	if isDigit(l.ch) {
+		literal := l.readNumber()
+
+		return token.Token{
+			Type:    token.INT,
 			Literal: literal,
 		}
 	}

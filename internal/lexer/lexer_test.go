@@ -1,4 +1,3 @@
-
 package lexer
 
 import (
@@ -90,6 +89,37 @@ func TestIdentifiersAndKeywords(t *testing.T) {
 		{token.IDENT, "calculate"},
 		{token.IDENT, "_name"},
 		{token.IDENT, "age25"},
+		{token.EOF, ""},
+	}
+
+	l := New(input)
+
+	for i, tt := range tests {
+		tok := l.NextToken()
+
+		if tok.Type != tt.expectedType {
+			t.Fatalf("tests[%d]: got type %q, want %q",
+				i, tok.Type, tt.expectedType)
+		}
+
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("tests[%d]: got literal %q, want %q",
+				i, tok.Literal, tt.expectedLiteral)
+		}
+	}
+}
+
+func TestIntegerLiterals(t *testing.T) {
+	input := "5 25 250 12345"
+
+	tests := []struct {
+		expectedType    token.TokenType
+		expectedLiteral string
+	}{
+		{token.INT, "5"},
+		{token.INT, "25"},
+		{token.INT, "250"},
+		{token.INT, "12345"},
 		{token.EOF, ""},
 	}
 

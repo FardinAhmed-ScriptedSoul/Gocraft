@@ -32,3 +32,4 @@ func TestLookupIdent(t *testing.T) {
 		}
 	}
 }
+
