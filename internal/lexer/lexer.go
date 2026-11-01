@@ -1,3 +1,4 @@
+
 package lexer
 
 import "github.com/FardinAhmed-ScriptedSoul/Gocraft/internal/token"
@@ -11,9 +12,7 @@ type Lexer struct {
 
 func New(input string) *Lexer {
 	l := &Lexer{input: input}
-
 	l.readChar()
-
 	return l
 }
 
@@ -42,6 +41,12 @@ func (l *Lexer) skipWhitespace() {
 	}
 }
 
+func (l *Lexer) skipLineComment() {
+	for l.ch != '\n' && l.ch != 0 {
+		l.readChar()
+	}
+}
+
 func (l *Lexer) readIdentifier() string {
 	position := l.position
 
@@ -62,6 +67,22 @@ func (l *Lexer) readNumber() string {
 	return l.input[position:l.position]
 }
 
+func (l *Lexer) readString() (string, bool) {
+	position := l.position + 1
+
+	for {
+		l.readChar()
+
+		if l.ch == '"' {
+			return l.input[position:l.position], true
+		}
+
+		if l.ch == 0 {
+			return l.input[position:l.position], false
+		}
+	}
+}
+
 func isLetter(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') ||
 		(ch >= 'A' && ch <= 'Z') ||
@@ -73,8 +94,19 @@ func isDigit(ch byte) bool {
 }
 
 func (l *Lexer) NextToken() token.Token {
-	l.skipWhitespace()
+	// Ignore whitespace and single-line comments.
+	for {
+		l.skipWhitespace()
 
+		if l.ch == '/' && l.peekChar() == '/' {
+			l.skipLineComment()
+			continue
+		}
+
+		break
+	}
+
+	// Identifiers and keywords.
 	if isLetter(l.ch) {
 		literal := l.readIdentifier()
 
@@ -84,6 +116,7 @@ func (l *Lexer) NextToken() token.Token {
 		}
 	}
 
+	// Integer literals.
 	if isDigit(l.ch) {
 		literal := l.readNumber()
 
@@ -93,25 +126,97 @@ func (l *Lexer) NextToken() token.Token {
 		}
 	}
 
+	// String literals.
+	if l.ch == '"' {
+		literal, closed := l.readString()
+
+		if !closed {
+			return token.Token{
+				Type:    token.ILLEGAL,
+				Literal: literal,
+			}
+		}
+
+		// Move beyond the closing quotation mark.
+		l.readChar()
+
+		return token.Token{
+			Type:    token.STRING,
+			Literal: literal,
+		}
+	}
+
 	var tok token.Token
 
 	switch l.ch {
 	case '=':
-		tok = token.Token{Type: token.ASSIGN, Literal: "="}
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.EQ, Literal: literal}
+		} else {
+			tok = token.Token{Type: token.ASSIGN, Literal: "="}
+		}
+
+	case '!':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.NOT_EQ, Literal: literal}
+		} else {
+			tok = token.Token{Type: token.BANG, Literal: "!"}
+		}
+
+	case '<':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.LTE, Literal: literal}
+		} else {
+			tok = token.Token{Type: token.LT, Literal: "<"}
+		}
+
+	case '>':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.GTE, Literal: literal}
+		} else {
+			tok = token.Token{Type: token.GT, Literal: ">"}
+		}
+
+	case '&':
+		if l.peekChar() == '&' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.AND, Literal: literal}
+		} else {
+			tok = token.Token{Type: token.ILLEGAL, Literal: string(l.ch)}
+		}
+
+	case '|':
+		if l.peekChar() == '|' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.OR, Literal: literal}
+		} else {
+			tok = token.Token{Type: token.ILLEGAL, Literal: string(l.ch)}
+		}
+
 	case '+':
 		tok = token.Token{Type: token.PLUS, Literal: "+"}
 	case '-':
 		tok = token.Token{Type: token.MINUS, Literal: "-"}
-	case '!':
-		tok = token.Token{Type: token.BANG, Literal: "!"}
 	case '*':
 		tok = token.Token{Type: token.ASTERISK, Literal: "*"}
 	case '/':
 		tok = token.Token{Type: token.SLASH, Literal: "/"}
-	case '<':
-		tok = token.Token{Type: token.LT, Literal: "<"}
-	case '>':
-		tok = token.Token{Type: token.GT, Literal: ">"}
 	case ',':
 		tok = token.Token{Type: token.COMMA, Literal: ","}
 	case ';':
@@ -133,6 +238,7 @@ func (l *Lexer) NextToken() token.Token {
 		}
 	}
 
+	// Advance beyond the token we just recognized.
 	l.readChar()
 
 	return tok
